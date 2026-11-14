@@ -1236,3 +1236,209 @@ const Fence = {
   const world = Render.world.bind(Render);
   Render.world = function (...a) { Fence.map = Player.map; return world(...a); };
 })();
+
+// ---- Dressed for the weather ---------------------------------------------------------------------------
+// Out of doors in winter everyone wraps up: a warm wool coat, a scarf, mittens, and a woolly hat for anyone
+// without a hat of their own. In autumn about half the town has a scarf on. Knights in armour, helmeted
+// guards and ghosts are left as they are; indoors, people wear their usual clothes.
+const Wardrobe = {
+  COATS: [['#6a4a3a', '#4a3020'], ['#3a4a6a', '#2a3450'], ['#7a3a3a', '#5a2828'], ['#3a5a3a', '#2a402a'], ['#5a5a62', '#3e3e46'], ['#8a6a4a', '#6a4a30'], ['#4a3a5a', '#342842']],
+  SCARVES: [['#c43030', '#8a2020'], ['#3a7ac0', '#2a5a90'], ['#e8c040', '#b89020'], ['#7ab05a', '#5a903a'], ['#e870a8', '#b84a80'], ['#f0ece0', '#c8c0b0'], ['#e07a30', '#a85a20']],
+  hash(id) { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; },
+  skip(id, look) { return !look || /^foe_/.test(id) || look.plate || look.hat === 'helm' || look.skin === '#f0f0f0' || look.noSeason; },
+  variant(id, look) {
+    if (typeof S === 'undefined' || !S || this.skip(id, look)) return null;
+    const m = Player.map; if (m && m.indoor) return null;
+    if (S.season === 3) return 'w';
+    if (S.season === 2 && this.hash(id) % 2 === 0) return 'a';
+    return null;
+  },
+  dress(id, look, v) {
+    const h = this.hash(id), o = Object.assign({}, look), sc = this.SCARVES[h % this.SCARVES.length];
+    o.scarf = sc[0]; o.scarfD = sc[1];
+    if (v === 'w') {
+      const c = this.COATS[(h >>> 4) % this.COATS.length];
+      o.shirt = c[0]; o.shirtD = c[1]; o.mitts = sc[1];
+      if (!look.hat) { o.hat = 'beanie'; o.hatC = sc[0]; o.hatD = sc[1]; }
+    }
+    return o;
+  },
+};
+(() => {
+  const frame = Art.charFrame;
+  Art.charFrame = function (id, look, dir, f) {
+    const v = Wardrobe.variant(id, look);
+    return v ? frame(id + '@' + v, Wardrobe.dress(id, look, v), dir, f) : frame(id, look, dir, f);
+  };
+})();
+
+// ---- Saltmere in winter -----------------------------------------------------------------------------------
+// The beach empties: no swimmers, surfers or sunbathers, no dolphins or sails, the turtle gone south. The
+// people who matter are still about, the stallholders keep their stalls, and a few hardy souls walk the
+// sand. The sea itself freezes: you can walk out on it, and it is slippery. (You can still fish through it.)
+const Ice = {
+  on: false, drawing: false, vx: 0, vy: 0, told: -1,
+  frozen(m) { return !!m && m.id === 'saltmere' && !!S && S.season === 3; },
+  onIce(m, x, y) { return this.frozen(m) && World.g(m, Math.floor(x / TILE), Math.floor((y - 2) / TILE)) === T.W; },
+  tile(f) {
+    return Art.memo('icetile' + f, () => Art.mk(16, 16, g => {
+      const P = Art.P;
+      P(g, '#cfe6f2', 0, 0, 16, 16); P(g, '#e4f2fa', 0, 0, 16, 5); P(g, '#b8d8ea', 0, 12, 16, 4);
+      P(g, '#eef8ff', 2, 3, 6, 1); P(g, '#eef8ff', 9, 8, 5, 1); P(g, '#a8c8dc', 4, 10, 4, 1); P(g, '#a8c8dc', 7, 11, 1, 2); P(g, '#a8c8dc', 12, 2, 1, 3);
+      P(g, '#ffffff', [3, 10, 6][f % 3], [2, 6, 13][f % 3], 1, 1);
+    }));
+  },
+  keep(p) {
+    const e = p.e;
+    if (e.swim || e.prop === 'swim' || e.prop === 'surf' || e.prop === 'kite') return false;
+    if (e.prop === 'rod') return true;
+    const spot = e.at || (e.route && e.route[0]);
+    if (spot && typeof Seller !== 'undefined' && Seller.at(World.maps.saltmere, spot[0] * TILE + 8, spot[1] * TILE + 12)) return true;
+    return !!e.wander && Wardrobe.hash(p.id) % 4 === 0;
+  },
+};
+(() => {
+  // Who stays on the winter beach.
+  const here = Extras.here;
+  Extras.here = function (p) { if (p.map === 'saltmere' && Ice.frozen(World.maps.saltmere) && !Ice.keep(p)) return false; return here.call(Extras, p); };
+  // Nothing at sea, and the turtle is away.
+  const sea = SeaLife.update.bind(SeaLife);
+  SeaLife.update = function (dt) { sea(dt); if (Ice.frozen(Player.map)) { this.dolphins = []; this.boats = []; this.ball = null; } };
+  const animals = Animals.update.bind(Animals);
+  Animals.update = function (dt) { if (Ice.frozen(Player.map)) this.list = this.list.filter(a => a.kind !== 'turtle'); return animals(dt); };
+  // The frozen sea is drawn as ice.
+  const water = Art.water;
+  Art.water = function (f, s) { return Ice.drawing ? Ice.tile(f) : water(f, s); };
+  const world = Render.world.bind(Render);
+  Render.world = function (...a) { Ice.drawing = Ice.frozen(Player.map); try { return world(...a); } finally { Ice.drawing = false; } };
+  // You may walk on it (only you: the crabs and everyone else keep to the sand).
+  const solid = World.solid.bind(World);
+  World.solid = function (m, x, y) {
+    if (Ice.on && Ice.frozen(m) && x >= 0 && y >= 0 && x < m.w && y < m.h && m.ground[y * m.w + x] === T.W && !m.block.has(key(x, y))) {
+      const o = m.occ.get(key(x, y)); if (!o || !OBJDEF[o.type].solid) return false;
+    }
+    return solid(m, x, y);
+  };
+  // And it is slippery: you pick up speed slowly, and slide on when you let go.
+  const update = Player.update.bind(Player);
+  Player.update = function (dt) {
+    const m = this.map, ox = this.x, oy = this.y;
+    Ice.on = true;
+    try {
+      update(dt);
+      if (!Ice.onIce(m, ox, oy)) { Ice.vx *= 0.5; Ice.vy *= 0.5; return; }
+      if (Ice.told !== absDay()) { Ice.told = absDay(); toast('The sea has frozen solid. Careful, it is slippery!'); }
+      const d = dt || 1 / 60, wantX = (this.x - ox) / d, wantY = (this.y - oy) / d;
+      this.x = ox; this.y = oy;
+      const grip = Math.min(1, d * (Horse.on ? 1.1 : 1.8)); // a horse is heavier: it slides further
+      Ice.vx += (wantX - Ice.vx) * grip; Ice.vy += (wantY - Ice.vy) * grip;
+      const bx = this.x; this.moveAxis(Ice.vx * d, 0); if (Math.abs(this.x - bx) < Math.abs(Ice.vx * d) * 0.5) Ice.vx = 0;
+      const by = this.y; this.moveAxis(0, Ice.vy * d); if (Math.abs(this.y - by) < Math.abs(Ice.vy * d) * 0.5) Ice.vy = 0;
+      const sliding = Math.hypot(Ice.vx, Ice.vy) > 6;
+      if (sliding && !(Math.abs(wantX) + Math.abs(wantY))) this.moving = false;
+      if (sliding && Math.random() < 0.3) VFX.emit('flake', this.x + (Math.random() - 0.5) * 8, this.y - 1, { vy: -6, t: 0.35 });
+    } finally { Ice.on = false; }
+  };
+  // In winter the pier fishermen go out onto the ice to fish, and come back when it thaws.
+  const iceSpot = (m, p) => {
+    const cx = Math.floor(p.x / TILE), cy = Math.floor((p.y - 2) / TILE), clear = (x, y) => World.g(m, x, y) === T.W && !World.at(m, x, y) && !World.warpAt(m, x, y);
+    const g = Extras.rodGeom(p), ox = Math.floor(g.bx / TILE) - cx, oy = Math.floor(g.by / TILE) - cy;
+    for (const r of [2, 3, 4]) for (const dx of [r, -r]) { const x = cx + dx; if (clear(x, cy) && clear(x + ox, cy + oy) && clear(x + ox - 1, cy + oy) && clear(x + ox + 1, cy + oy) && clear(x + ox, cy + oy + 1)) return [x, cy]; }
+    return null;
+  };
+  const tickIce = Horse.tick.bind(Horse);
+  Horse.tick = function (dt) {
+    tickIce(dt);
+    const m = Player.map; if (!m || m.id !== 'saltmere') return;
+    const frozen = Ice.frozen(m);
+    for (const p of Extras.list) {
+      if (p.map !== 'saltmere' || p.e.prop !== 'rod') continue;
+      if (frozen && !p.onIce) { const s = iceSpot(m, p); if (s) { p.onIce = [p.x, p.y]; p.x = p.tx = s[0] * TILE + 8; p.y = p.ty = s[1] * TILE + 12; } }
+      else if (!frozen && p.onIce) { [p.x, p.y] = p.onIce; p.tx = p.x; p.ty = p.y; p.onIce = null; }
+    }
+  };
+  // Anyone fishing out on the ice has a hole in front of them.
+  const drawWorld = Story.drawWorld.bind(Story);
+  Story.drawWorld = function (g, m, items) {
+    drawWorld(g, m, items);
+    if (!Ice.frozen(m)) return;
+    for (const p of Extras.active(m)) {
+      if (p.e.prop !== 'rod') continue;
+      const rod = Extras.rodGeom(p), bx = rod.bx, hy = rod.by + 1, tx = Math.floor(bx / TILE), ty = Math.floor(hy / TILE);
+      if (World.g(m, tx, ty) !== T.W) continue;
+      const hx = bx;
+      items.push({ y: -1e9 + 2, draw: () => {
+        // Only on the ice: where the pier or the shore begins, the hole stops.
+        g.save(); g.beginPath();
+        for (let j = ty - 1; j <= ty + 1; j++) for (let i = tx - 1; i <= tx + 1; i++) if (World.g(m, i, j) === T.W) g.rect(i * TILE, j * TILE, TILE, TILE);
+        g.clip();
+        const P = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(hx + x, hy + y, w, h); };
+        // A ring of broken ice and snow, dark water inside, a glint, and chips scattered about.
+        P('#ffffff', -6, -3, 12, 7); P('#ffffff', -7, -2, 14, 5); P('#d8ecf8', -6, 3, 12, 1);
+        P('#0e2a40', -5, -2, 10, 5); P('#0e2a40', -6, -1, 12, 3); P('#1e4a6a', -4, 1, 8, 2);
+        P('#5a9ac8', -3, -1, 3, 1); P('#bfe4ff', 2, 1, 2, 1);
+        P('#ffffff', -10, 2, 2, 1); P('#ffffff', 9, -1, 2, 1); P('#e6f2fa', 8, 3, 1, 1); P('#e6f2fa', -9, -2, 1, 1);
+        g.restore();
+      } });
+    }
+  };
+  // Fishing on the frozen sea means cutting a hole first.
+  const fishing = UI.fishing.bind(UI);
+  UI.fishing = function (spot) { if (Ice.frozen(Player.map)) toast('You cut a hole in the ice and drop your line.'); return fishing(spot); };
+})();
+
+// ---- No snow in the pass ----------------------------------------------------------------------------------
+// Ironback Pass is walled in by rock: in winter the snow only blows in a little way at the mouth (where it
+// meets Greywood), thinning out into bare ground. Falling snow (and rain) only reaches you near the mouth.
+const Cave = {
+  ids: { ironback: 'greywood' }, mouths: {}, drawing: null,
+  mouth(m) {
+    if (!this.mouths[m.id]) { const ws = m.warps.filter(w => w.to === this.ids[m.id]); this.mouths[m.id] = ws.length ? ws.map(w => [w.x, w.y]) : [[0, 0]]; }
+    return this.mouths[m.id];
+  },
+  is(m) { return !!m && !!this.ids[m.id]; },
+  dist(m, tx, ty) { return Math.min(...this.mouth(m).map(([x, y]) => Math.hypot(tx - x, ty - y))); },
+  // How much snow lies here: all of it at the mouth, thinning to none a few steps in.
+  amount(m, tx, ty) { const d = this.dist(m, tx, ty); return d <= 2 ? 1 : d >= 10 ? 0 : (10 - d) / 8; },
+  // Snow here? Full at the mouth, then scattered, then none.
+  snowy(m, tx, ty) {
+    const d = this.dist(m, tx, ty);
+    if (d <= 3) return true;
+    if (d >= 9) return false;
+    const h = ((tx * 73856093) ^ (ty * 19349663)) >>> 0;
+    return (h % 100) / 100 < 1 - (d - 3) / 6;
+  },
+  season(m, tx, ty, season) { return season === 3 && this.is(m) && !this.snowy(m, tx, ty) ? 2 : season; },
+};
+(() => {
+  const paint = Art.paintGround;
+  Art.paintGround = function (g, code, px, py, season, r, map, tx, ty) {
+    if (season !== 3 || !Cave.is(map)) return paint(g, code, px, py, season, r, map, tx, ty);
+    const x = tx === undefined ? Math.floor(px / TILE) : tx, y = ty === undefined ? Math.floor(py / TILE) : ty, amt = Cave.amount(map, x, y);
+    if (amt >= 1) return paint(g, code, px, py, 3, r, map, tx, ty);
+    paint(g, code, px, py, 2, r, map, tx, ty);
+    if (amt <= 0 || code === T.W || code === T.ROCK) return;
+    // A dusting that thins out tile by tile: specks, then little drifts where there is more of it.
+    const n = Math.round(amt * amt * 60);
+    for (let i = 0; i < n; i++) { const sx = px + Math.floor(r() * 16), sy = py + Math.floor(r() * 16); g.fillStyle = i % 3 ? '#eef3f8' : '#ffffff'; g.fillRect(sx, sy, 1, 1); }
+    for (let i = 0; i < Math.round(amt * 5); i++) { const sx = px + Math.floor(r() * 13), sy = py + Math.floor(r() * 14); g.fillStyle = '#f6f9fc'; g.fillRect(sx, sy, 3, 2); g.fillStyle = '#dde6ee'; g.fillRect(sx, sy + 2, 3, 1); }
+  };
+  const fringe = Art.paintFringe;
+  Art.paintFringe = function (g, code, nCode, side, px, py, season, r) {
+    if (season === 3 && Cave.drawing) season = Cave.season(Cave.drawing, Math.floor(px / TILE), Math.floor(py / TILE), season);
+    return fringe(g, code, nCode, side, px, py, season, r);
+  };
+  const ground = Render.ground.bind(Render);
+  Render.ground = function (m, season) { Cave.drawing = Cave.is(m) ? m : null; try { return ground(m, season); } finally { Cave.drawing = null; } };
+  const objSprite = Render.objSprite.bind(Render);
+  Render.objSprite = function (o, season) {
+    const m = (typeof Fence !== 'undefined' && Fence.map) || Player.map;
+    return objSprite(o, season === 3 && Cave.is(m) ? Cave.season(m, o.x, o.y, season) : season);
+  };
+  const weather = Render.weather.bind(Render);
+  Render.weather = function (g, W, H, dt) {
+    const m = Player.map;
+    if (Cave.is(m) && Cave.dist(m, Player.x / TILE, Player.y / TILE) > 10) { this.drops.length = 0; return; }
+    return weather(g, W, H, dt);
+  };
+})();

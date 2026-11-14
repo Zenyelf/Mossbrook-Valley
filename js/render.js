@@ -21,7 +21,7 @@ const Render = {
       }
       for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
         const c = World.g(m, x, y);
-        if (c !== T.C && c !== T.D && c !== T.W) continue;
+        if (c !== T.C && c !== T.D && c !== T.W && c !== T.S) continue;
         [[0, -1, 0], [0, 1, 1], [-1, 0, 2], [1, 0, 3]].forEach(([dx, dy, side]) => {
           const nx = x + dx, ny = y + dy;
           if (nx >= 0 && ny >= 0 && nx < m.w && ny < m.h) Art.paintFringe(g, c, World.g(m, nx, ny), side, x * TILE, y * TILE, season, r);

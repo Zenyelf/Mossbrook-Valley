@@ -76,7 +76,8 @@ const Art = (() => {
         }
         break;
       }
-      case 4: P(g, '#e5cf94', px, py, 16, 16); sp('#d2ba7d', 14); sp('#f2e0ad', 10); break;
+      case 4: if (season === 3) { P(g, '#dccfae', px, py, 16, 16); sp('#c8b88a', 8); sp('#f2f5f8', 26, 2, 1); sp('#ffffff', 12, 3, 2); sp('#e6edf2', 8, 2, 2); } // snow over the sand
+        else { P(g, '#e5cf94', px, py, 16, 16); sp('#d2ba7d', 14); sp('#f2e0ad', 10); } break;
       case 5: { // wood floor
         P(g, '#b7814d', px, py, 16, 16);
         for (let row = 0; row < 4; row++) {
@@ -157,6 +158,15 @@ const Art = (() => {
         if (side === 3) P(g, p.b, px + 16 - len, py + i, len, 2);
       }
     }
+    // Sand meeting grass: ragged tufts at the edge, then grass specks thinning out into the sand.
+    if (code === 4 && isLand(nCode)) {
+      const at = (d, i, w, h) => { if (side === 0) P(g, w, px + i, py + d, 1, h); else if (side === 1) P(g, w, px + i, py + 15 - d, 1, h); else if (side === 2) P(g, w, px + d, py + i, h, 1); else P(g, w, px + 15 - d, py + i, h, 1); };
+      for (let i = 0; i < 16; i++) {
+        const len = 1 + Math.floor(r() * 3);
+        for (let d = 0; d < len; d++) at(d, i, d === len - 1 && r() < 0.5 ? p.d : p.b, 1);
+        for (let d = len; d < 7; d++) if (r() < 0.42 - d * 0.055) at(d, i, r() < 0.5 ? p.b : p.l, 1);
+      }
+    }
     if (code === 3 && nCode !== 3 && nCode !== 8) {
       const sandy = nCode === 4, bank = sandy ? '#c9b077' : season === 3 ? '#b8b0a8' : '#8a6a44', lip = sandy ? '#e5cf94' : season === 3 ? '#e3ecf5' : p.d;
       if (side === 0) { P(g, bank, px, py, 16, 5); P(g, lip, px, py, 16, 2); P(g, '#2f6da8', px, py + 5, 16, 1); }
@@ -204,7 +214,7 @@ const Art = (() => {
       if (o.greaves) { P(g, o.greaves[1], 5, 21 - lift(1), 4, 3); P(g, o.greaves[1], 9, 21 - lift(3), 4, 3); P(g, o.greaves[2], 5, 21 - lift(1), 1, 3); P(g, o.greaves[2], 9, 21 - lift(3), 1, 3); }
       const swing = f === 1 ? 1 : f === 3 ? -1 : 0;
       P(g, o.shirtD, 3, 13 + y0 + swing, 2, 6); P(g, o.shirtD, 13, 13 + y0 - swing, 2, 6);
-      P(g, o.skin, 3, 19 + y0 + swing, 2, 2); P(g, o.skin, 13, 19 + y0 - swing, 2, 2);
+      P(g, o.mitts || o.skin, 3, 19 + y0 + swing, 2, 2); P(g, o.mitts || o.skin, 13, 19 + y0 - swing, 2, 2);
       P(g, o.shirt, 5, 13 + y0, 8, 8); P(g, o.shirtD, 12, 13 + y0, 1, 8);
       if (o.overalls) {
         P(g, o.overalls, 5, 17 + y0, 8, 4);
@@ -230,6 +240,7 @@ const Art = (() => {
         if (o.scar) { P(g, '#b0605a', 11, 6 + y0, 1, 4); }
         if (o.patch) { P(g, '#14100c', 10, 7 + y0, 3, 3); P(g, '#14100c', 4, 6 + y0, 10, 1); }
       }
+      if (o.scarf) { P(g, o.scarf, 4, 12 + y0, 10, 2); P(g, o.scarfD || o.scarf, 4, 13 + y0, 10, 1); const tx = dir === 0 ? 10 : 6; P(g, o.scarf, tx, 14 + y0, 2, 4); P(g, o.scarfD || o.scarf, tx, 18 + y0, 2, 1); P(g, '#ffffff55', 5, 12 + y0, 3, 1); }
       paintHairFront(g, o, y0, dir === 1);
     } else {
       // Side view facing right; left is drawn by flipping.
@@ -245,12 +256,13 @@ const Art = (() => {
       if (o.plate) { const [, pd, pl] = o.plate; P(g, pd, 7, 12 + y0, 5, 3); P(g, pl, 8, 12 + y0, 3, 1); P(g, pl, 11, 14 + y0, 1, 4); }
       if (o.dress) { P(g, o.dress, 5, 18 + y0, 9, 5); P(g, o.dress, 4, 22, 11, 3); P(g, o.dressD || o.shirtD, 4, 24, 11, 1); if (o.trim) P(g, o.trim, 4, 23, 11, 1); }
       const sw = f === 1 ? 2 : f === 3 ? -2 : 0;
-      P(g, o.shirtD, 8 + sw, 14 + y0, 3, 5); P(g, o.skin, 8 + sw, 19 + y0, 3, 2);
+      P(g, o.shirtD, 8 + sw, 14 + y0, 3, 5); P(g, o.mitts || o.skin, 8 + sw, 19 + y0, 3, 2);
       P(g, o.skin, 5, 4 + y0, 9, 9); P(g, o.skinD, 5, 12 + y0, 9, 1); P(g, o.skin, 14, 8 + y0, 1, 2);
       P(g, '#2a1a12', 11, 8 + y0, 2, 2); P(g, '#ffffff', 12, 8 + y0);
       P(g, '#e89a84', 10, 10 + y0);
       if (o.beard) { P(g, o.beard, 9, 10 + y0, 5, 3); P(g, o.beard, 9, 13 + y0, 4, 2); }
       if (o.patch) { P(g, '#14100c', 11, 7 + y0, 3, 3); P(g, '#14100c', 5, 6 + y0, 9, 1); }
+      if (o.scarf) { P(g, o.scarf, 5, 12 + y0, 9, 2); P(g, o.scarfD || o.scarf, 5, 13 + y0, 9, 1); P(g, o.scarf, 4, 13 + y0, 2, 5); P(g, o.scarfD || o.scarf, 4, 18 + y0, 2, 1); }
       paintHairSide(g, o, y0);
     }
   }
@@ -316,6 +328,12 @@ const Art = (() => {
     }
     if (o.hat === 'cap') {
       P(g, o.hatC || '#6a4a7a', 4, 2 + y, 10, 3); P(g, o.hatD || '#513860', 3, 5 + y, 12, 1);
+    }
+    if (o.hat === 'beanie') {
+      const c = o.hatC || '#c43030', d = o.hatD || '#8a2020';
+      P(g, c, 5, 0 + y, 8, 1); P(g, c, 4, 1 + y, 10, 3); P(g, d, 3, 4 + y, 12, 2);
+      for (let x = 4; x < 15; x += 2) P(g, c, x, 4 + y, 1, 2);
+      P(g, '#ffffff44', 6, 1 + y, 3, 1); P(g, '#f4f0e8', 8, -2 + y, 2, 2); P(g, '#d8d0c0', 9, -1 + y, 1, 1);
     }
   }
 

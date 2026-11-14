@@ -444,6 +444,19 @@ const Extras = {
     } else if (e.dir !== undefined && !e.route && !e.wander && !e.follow && !(p.pause > 0 && p.talkT > 0)) p.dir = e.dir;
   },
   frame(p) { return Art.charFrame(p.id, p.e.look, p.dir, p.moving ? Math.floor(p.frameT) % 4 : 0); },
+  // A fishing rod held out the way they face: from the hands to the tip, and the line dropping from the
+  // tip to the bobber in the water ahead of them.
+  ROD: { 0: [5, -12, 8, 6, 8, 16], 1: [-4, -14, -2, -30, -2, -22], 2: [4, -12, 18, -20, 18, 2], 3: [-4, -12, -18, -20, -18, 2] },
+  rodGeom(p) { const r = this.ROD[p.dir] || this.ROD[0], x = Math.round(p.x), y = Math.round(p.y); return { hx: x + r[0], hy: y + r[1], tx: x + r[2], ty: y + r[3], bx: x + r[4], by: y + r[5] }; },
+  drawRod(g, p) {
+    const k = this.rodGeom(p), n = Math.max(Math.abs(k.tx - k.hx), Math.abs(k.ty - k.hy));
+    g.fillStyle = '#7a5535';
+    for (let i = 0; i <= n; i++) g.fillRect(Math.round(k.hx + (k.tx - k.hx) * i / n), Math.round(k.hy + (k.ty - k.hy) * i / n), 1, 1);
+    g.fillStyle = '#a07a4c'; g.fillRect(k.hx, k.hy, 2, 2);
+    const bob = Math.round(Math.sin(performance.now() / 400 + p.x));
+    g.fillStyle = '#e8e8f0'; g.fillRect(k.tx, Math.min(k.ty, k.by), 1, Math.abs(k.by - k.ty) + bob);
+    g.fillStyle = '#e04050'; g.fillRect(k.bx - 1, k.by + bob, 3, 2); g.fillStyle = '#ffffff'; g.fillRect(k.bx - 1, k.by + bob, 1, 1);
+  },
   draw(g, items, m) {
     for (const p of this.active(m)) {
       items.push({ y: p.y, draw: () => {
@@ -468,7 +481,7 @@ const Extras = {
         if (e.prop === 'squeeze') { const w = 3 + Math.round(Math.sin(performance.now() / 160) * 2); g.fillStyle = '#8a2a2a'; g.fillRect(x - 2 - w, y - 16, 4, 6); g.fillRect(x + 2 + w, y - 16, 4, 6); g.fillStyle = '#e8e0d0'; for (let i = 0; i < w * 2 + 4; i += 2) g.fillRect(x + 2 - w + i, y - 15, 1, 4); }
         if (e.prop === 'fiddle') { g.fillStyle = '#a0502c'; g.fillRect(x + 3, y - 20, 6, 4); g.fillStyle = '#3a2414'; g.fillRect(x + 8, y - 22, 4, 1); g.fillStyle = '#e8e0d0'; const b = Math.round(Math.sin(performance.now() / 120) * 3); g.fillRect(x - 2 + b, y - 21, 9, 1); }
         if (e.prop === 'mop') { const b = Math.round(Math.sin(performance.now() / 200) * 3); g.fillStyle = '#a07a4c'; g.fillRect(x + 6 + b, y - 18, 1, 16); g.fillStyle = '#d8d0b8'; g.fillRect(x + 4 + b, y - 2, 5, 3); }
-        if (e.prop === 'rod') { g.fillStyle = '#7a5535'; for (let i = 0; i < 12; i++) g.fillRect(x + 4 + Math.round(i * 0.4), y - 14 + i * 2, 1, 2); g.fillStyle = '#e8e8f0'; g.fillRect(x + 9, y + 10, 1, 8); g.fillStyle = '#e04050'; g.fillRect(x + 8, y + 17 + Math.round(Math.sin(performance.now() / 400)), 3, 2); }
+        if (e.prop === 'rod') this.drawRod(g, p, x, y);
         if (e.prop === 'dice' && Math.floor(performance.now() / 900 + x) % 4 === 0) { g.fillStyle = '#f0ece0'; g.fillRect(x + (p.dir === DIRS.left ? -10 : 8), y - 6 - Math.round(Math.abs(Math.sin(performance.now() / 120)) * 6), 3, 3); }
         if (e.prop === 'lute') { g.fillStyle = '#a0703c'; g.fillRect(x + 2, y - 16, 6, 5); g.fillStyle = '#6a4a28'; g.fillRect(x + 7, y - 20, 1, 6); }
         if (e.prop === 'harp') { g.fillStyle = '#e8c040'; g.fillRect(x + 8, y - 24, 2, 16); g.fillRect(x + 8, y - 24, 8, 2); g.fillRect(x + 14, y - 24, 2, 14); g.fillStyle = '#fff0c0'; for (let i = 0; i < 3; i++) g.fillRect(x + 10 + i * 2, y - 22, 1, 12); }

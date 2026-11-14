@@ -84,3 +84,7 @@ The editor won't let changes get the story stuck. Doors, exits and the places wh
 ## Grudges
 
 Wrong someone and let them find out (they catch you stealing from them, their home or their shop, picking their pocket or breaking in, or you blackmail or beat them) and their hearts fall to -10, shown as broken hearts in the People tab. Everything that earns trust climbs them back: talking each day, gifts and favours. Only at +10 do they forgive you, and then you are best friends again. Another wrong on the way puts them back at -10. Until then they greet you coldly and charge you more, but they still trade, and the story carries on. A crime nobody sees doesn't count.
+
+## Seasons
+
+In winter, everyone out of doors wraps up in a coat, a scarf, mittens and (if they have no hat of their own) a woolly hat. In autumn, about half the town wears a scarf. Saltmere Coast empties in winter: nobody swims, the boats and dolphins are gone, but the people who matter and the stallholders are still there. The sand is dusted with snow and the sea freezes solid, so you can walk or ride out on the ice. It is slippery (a horse slides even further), and you can fish through a hole in it, as the fishermen do. Ironback Pass is walled in by rock, so snow only blows in a little way at its mouth.
