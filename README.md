@@ -1,3 +1,5 @@
+https://zenyelf.github.io/Mossbrook-Valley/
+
 # Mossbrook Valley
 
 A farming RPG that runs in your browser. Double-click `index.html` to play. There is nothing to install.
@@ -23,8 +25,9 @@ Anything you can interact with glows gold and shows the key to press.
 
 The game saves automatically when you go to bed. You can also save from the System tab.
 
-## Tips
+JUST EXPLORE THE GAME
 
+<<<<<<< HEAD
 - Water crops every morning. A crop left dry for 4 days dies, and people will hear about it.
 - Refill the watering can by using it on the pond.
 - Be in bed before 2:00, or you collapse and lose gold.
@@ -88,3 +91,5 @@ Wrong someone and let them find out (they catch you stealing from them, their ho
 ## Seasons
 
 In winter, everyone out of doors wraps up in a coat, a scarf, mittens and (if they have no hat of their own) a woolly hat. In autumn, about half the town wears a scarf. Saltmere Coast empties in winter: nobody swims, the boats and dolphins are gone, but the people who matter and the stallholders are still there. The sand is dusted with snow and the sea freezes solid, so you can walk or ride out on the ice. It is slippery (a horse slides even further), and you can fish through a hole in it, as the fishermen do. Ironback Pass is walled in by rock, so snow only blows in a little way at its mouth.
+=======
+>>>>>>> 1cbda980f96ef0e3c8523c3443773eefa73b9308
